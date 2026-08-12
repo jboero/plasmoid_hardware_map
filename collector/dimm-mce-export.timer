@@ -1,0 +1,14 @@
+[Unit]
+Description=Refresh per-DIMM ECC/MCE state periodically
+
+[Timer]
+# Runs shortly after boot so the widget has data as soon as the panel loads,
+# then once a minute. The widget's own poll interval can be slower; it simply
+# re-reads whatever the last run wrote.
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=10s
+Unit=dimm-mce-export.service
+
+[Install]
+WantedBy=timers.target

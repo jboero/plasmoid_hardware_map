@@ -1,0 +1,4 @@
+17:40:09  monitoring started (sampling every 5s)
+17:40:09  *** LINK CHANGE: GPU0 x8  GPU1 x16   (util 2%/5%, 49.71W/59.45W)
+17:42:10  steady: GPU0 x8 GPU1 x16  util 52%/67%  91.80W/88.57W  (peak width x8, peak util 53%)
+17:44:12  steady: GPU0 x8 GPU1 x16  util 50%/62%  97.26W/84.27W  (peak width x8, peak util 72%)

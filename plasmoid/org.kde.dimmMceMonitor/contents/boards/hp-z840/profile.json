@@ -1,0 +1,534 @@
+{
+  "id": "hp-z840",
+  "name": "HP Z840 Workstation (photo)",
+  "match": {
+    "board_vendor": "Hewlett-Packard",
+    "board_name": "2129",
+    "product_name": "HP Z840 Workstation"
+  },
+  "image": "board.webp",
+  "imageSize": [
+    1358,
+    1200
+  ],
+  "confidence": "derived",
+  "notes": [
+    "Rectangles traced against a photo of a real Z840 board; positions are accurate to that photo.",
+    "DIMM identity comes from the silkscreen (CPU0-DIMM1..8 / CPU1-DIMM1..8), so the SOCKET and slot number are certain.",
+    "Which EDAC channel letter each silkscreened DIMM belongs to is INFERRED from HP's loading order (CPU0-DIMMn = population order 2n-1) plus the assumption that the first channel populated is channel A. Nothing in SMBIOS confirms it.",
+    "SATA connector order and the two RJ45 assignments are best guesses - the kernel's ata port numbering need not follow the silkscreen. Verify before trusting.",
+    "Fan headers are intentionally unplaced; they are indistinguishable from other 4-pin headers in this photo.",
+    "There are TWO storage connector banks. The lower cream row (8 connectors, silkscreened SAS7..SAS0) maps to the kernel's 8 ata ports; the upper silver row is the SAS bank that cables to the drive cage.",
+    "Network jacks are keyed by PCI vendor:device rather than interface name, because BOTH interface names and PCI addresses change when BIOS lane settings change (enp12s0 became enp6s0 here).",
+    "Connector numbering follows HP's own diagram: every bank is numbered RIGHT TO LEFT, so port 0 is the rightmost connector in its group.",
+    "HP's diagram shows 4 SATA + 2 sSATA in the upper bank. Only the 4 SATA connectors could be located confidently in this photo; the 2 sSATA are not yet placed.",
+    "HP's silkscreened SATA0-3 are wired to Intel's *sSATA* controller (00:11.4, kernel ata1-4) - the vendor silkscreen and Intel's controller naming disagree. Deduced because three drives sit on ata2/3/4 while the board wires only two sSATA connectors.",
+    "The 8 SAS connectors have no kernel identity (they cable to a backplane, and the drives here are behind an add-in LSI HBA), so they are drawn as present-but-unreported rather than mapped to specific drives.",
+    "Fans are drawn at WHAT THEY COOL, not at their header. Header positions are not identifiable in this photo, and the useful question is which airflow path is unhealthy, not where the 4-pin connector sits.",
+    "CPU fan placement follows the sensor name and is reliable. Which of the four memory fans serves which DIMM bank is ASSUMED in index order and is not verified.",
+    "Chassis fans are not board components; they are drawn in the image margin on the correct side (rear = the I/O panel edge, at the left of this photo).",
+    "Kernel ata5-8 (Intel controller 00:1f.2) are the sSATA side and include the DVD on ata6. They are intentionally NOT drawn: the two sSATA connectors could not be located in this photo, and drawing them on the SAS bank - as an earlier revision did - was simply wrong."
+  ],
+  "slots": {
+    "dimm:s0_ha0_ch0_d0": {
+      "rect": [
+        0.5744,
+        0.5717,
+        0.3203,
+        0.0217
+      ],
+      "label": "CPU0-DIMM1",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha0_ch1_d0": {
+      "rect": [
+        0.5744,
+        0.545,
+        0.3203,
+        0.0217
+      ],
+      "label": "CPU0-DIMM2",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha1_ch0_d0": {
+      "rect": [
+        0.5744,
+        0.5183,
+        0.3203,
+        0.0217
+      ],
+      "label": "CPU0-DIMM3",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha1_ch1_d0": {
+      "rect": [
+        0.5744,
+        0.4917,
+        0.3203,
+        0.0217
+      ],
+      "label": "CPU0-DIMM4",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha0_ch0_d1": {
+      "rect": [
+        0.556,
+        0.2092,
+        0.3277,
+        0.0208
+      ],
+      "label": "CPU0-DIMM5",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha0_ch1_d1": {
+      "rect": [
+        0.556,
+        0.185,
+        0.3277,
+        0.0208
+      ],
+      "label": "CPU0-DIMM6",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha1_ch0_d1": {
+      "rect": [
+        0.556,
+        0.1617,
+        0.3277,
+        0.0208
+      ],
+      "label": "CPU0-DIMM7",
+      "kind": "dimm"
+    },
+    "dimm:s0_ha1_ch1_d1": {
+      "rect": [
+        0.556,
+        0.1375,
+        0.3277,
+        0.0208
+      ],
+      "label": "CPU0-DIMM8",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha0_ch0_d0": {
+      "rect": [
+        0.1804,
+        0.4833,
+        0.3351,
+        0.0217
+      ],
+      "label": "CPU1-DIMM1",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha0_ch1_d0": {
+      "rect": [
+        0.1804,
+        0.4575,
+        0.3351,
+        0.0208
+      ],
+      "label": "CPU1-DIMM2",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha1_ch0_d0": {
+      "rect": [
+        0.1804,
+        0.4317,
+        0.3351,
+        0.02
+      ],
+      "label": "CPU1-DIMM3",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha1_ch1_d0": {
+      "rect": [
+        0.1804,
+        0.405,
+        0.3351,
+        0.0208
+      ],
+      "label": "CPU1-DIMM4",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha0_ch0_d1": {
+      "rect": [
+        0.2135,
+        0.125,
+        0.3019,
+        0.0208
+      ],
+      "label": "CPU1-DIMM5",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha0_ch1_d1": {
+      "rect": [
+        0.2135,
+        0.1025,
+        0.3019,
+        0.0208
+      ],
+      "label": "CPU1-DIMM6",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha1_ch0_d1": {
+      "rect": [
+        0.2135,
+        0.0792,
+        0.3019,
+        0.0208
+      ],
+      "label": "CPU1-DIMM7",
+      "kind": "dimm"
+    },
+    "dimm:s1_ha1_ch1_d1": {
+      "rect": [
+        0.2135,
+        0.0567,
+        0.3019,
+        0.0208
+      ],
+      "label": "CPU1-DIMM8",
+      "kind": "dimm"
+    },
+    "pcie:0": {
+      "rect": [
+        0.218,
+        0.5142,
+        0.1134,
+        0.0208
+      ],
+      "label": "SLOT0",
+      "kind": "pcie"
+    },
+    "pcie:1": {
+      "rect": [
+        0.218,
+        0.5675,
+        0.1193,
+        0.0183
+      ],
+      "label": "SLOT1",
+      "kind": "pcie"
+    },
+    "pcie:2": {
+      "rect": [
+        0.218,
+        0.6075,
+        0.2474,
+        0.0275
+      ],
+      "label": "SLOT2",
+      "kind": "pcie"
+    },
+    "pcie:3": {
+      "rect": [
+        0.218,
+        0.6658,
+        0.1487,
+        0.0308
+      ],
+      "label": "SLOT3",
+      "kind": "pcie"
+    },
+    "pcie:4": {
+      "rect": [
+        0.218,
+        0.7275,
+        0.2474,
+        0.0283
+      ],
+      "label": "SLOT4",
+      "kind": "pcie"
+    },
+    "pcie:5": {
+      "rect": [
+        0.218,
+        0.7808,
+        0.159,
+        0.025
+      ],
+      "label": "SLOT5",
+      "kind": "pcie"
+    },
+    "pcie:6": {
+      "rect": [
+        0.218,
+        0.8317,
+        0.2474,
+        0.0283
+      ],
+      "label": "SLOT6",
+      "kind": "pcie"
+    },
+    "pcie:7": {
+      "rect": [
+        0.218,
+        0.8975,
+        0.1119,
+        0.0233
+      ],
+      "label": "SLOT7",
+      "kind": "pcie"
+    },
+    "cpu:0": {
+      "rect": [
+        0.5817,
+        0.2375,
+        0.1915,
+        0.2292
+      ],
+      "label": "CPU0 socket",
+      "kind": "cpu"
+    },
+    "cpu:1": {
+      "rect": [
+        0.2946,
+        0.1708,
+        0.1841,
+        0.2042
+      ],
+      "label": "CPU1 socket",
+      "kind": "cpu"
+    },
+    "sata:ata1": {
+      "rect": [
+        0.7393,
+        0.82,
+        0.0457,
+        0.02
+      ],
+      "label": "SATA0",
+      "kind": "sata"
+    },
+    "sata:ata2": {
+      "rect": [
+        0.6907,
+        0.82,
+        0.0457,
+        0.02
+      ],
+      "label": "SATA1",
+      "kind": "sata"
+    },
+    "sata:ata3": {
+      "rect": [
+        0.6421,
+        0.82,
+        0.0457,
+        0.02
+      ],
+      "label": "SATA2",
+      "kind": "sata"
+    },
+    "sata:ata4": {
+      "rect": [
+        0.5935,
+        0.82,
+        0.0457,
+        0.02
+      ],
+      "label": "SATA3",
+      "kind": "sata"
+    },
+    "net:dev:8086:15a0": {
+      "rect": [
+        0.0943,
+        0.385,
+        0.0663,
+        0.05
+      ],
+      "label": "Onboard NIC \u2014 Intel I218-LM",
+      "kind": "net"
+    },
+    "net:dev:8086:1533": {
+      "rect": [
+        0.0943,
+        0.4367,
+        0.0663,
+        0.0508
+      ],
+      "label": "Onboard NIC \u2014 Intel I210",
+      "kind": "net"
+    },
+    "sasport:0": {
+      "rect": [
+        0.7533,
+        0.935,
+        0.0376,
+        0.03
+      ],
+      "label": "SAS0",
+      "kind": "sas"
+    },
+    "sasport:1": {
+      "rect": [
+        0.7099,
+        0.935,
+        0.0383,
+        0.03
+      ],
+      "label": "SAS1",
+      "kind": "sas"
+    },
+    "sasport:2": {
+      "rect": [
+        0.6672,
+        0.935,
+        0.0383,
+        0.03
+      ],
+      "label": "SAS2",
+      "kind": "sas"
+    },
+    "sasport:3": {
+      "rect": [
+        0.6244,
+        0.935,
+        0.0376,
+        0.03
+      ],
+      "label": "SAS3",
+      "kind": "sas"
+    },
+    "sasport:4": {
+      "rect": [
+        0.5817,
+        0.935,
+        0.0376,
+        0.03
+      ],
+      "label": "SAS4",
+      "kind": "sas"
+    },
+    "sasport:5": {
+      "rect": [
+        0.539,
+        0.935,
+        0.0376,
+        0.03
+      ],
+      "label": "SAS5",
+      "kind": "sas"
+    },
+    "sasport:6": {
+      "rect": [
+        0.4956,
+        0.935,
+        0.0376,
+        0.03
+      ],
+      "label": "SAS6",
+      "kind": "sas"
+    },
+    "sasport:7": {
+      "rect": [
+        0.4529,
+        0.935,
+        0.0376,
+        0.03
+      ],
+      "label": "SAS7",
+      "kind": "sas"
+    },
+    "fan:hp_wmi_sensors:1": {
+      "rect": [
+        0.7806,
+        0.25,
+        0.0663,
+        0.0433
+      ],
+      "label": "CPU0 Fan \u2014 cools CPU0 socket",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:2": {
+      "rect": [
+        0.486,
+        0.25,
+        0.0648,
+        0.0433
+      ],
+      "label": "CPU1 Fan \u2014 cools CPU1 socket",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:7": {
+      "rect": [
+        0.5169,
+        0.0583,
+        0.0295,
+        0.0867
+      ],
+      "label": "Memory Fan0 \u2014 assumed: CPU1 bank DIMM5-8",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:8": {
+      "rect": [
+        0.5169,
+        0.4067,
+        0.0295,
+        0.0967
+      ],
+      "label": "Memory Fan1 \u2014 assumed: CPU1 bank DIMM1-4",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:9": {
+      "rect": [
+        0.8881,
+        0.1392,
+        0.0295,
+        0.09
+      ],
+      "label": "Memory Fan2 \u2014 assumed: CPU0 bank DIMM5-8",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:10": {
+      "rect": [
+        0.8984,
+        0.4933,
+        0.028,
+        0.0983
+      ],
+      "label": "Memory Fan3 \u2014 assumed: CPU0 bank DIMM1-4",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:3": {
+      "rect": [
+        0.0206,
+        0.2083,
+        0.056,
+        0.0467
+      ],
+      "label": "Rear Chassis Fan0 (chassis, rear)",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:4": {
+      "rect": [
+        0.0206,
+        0.265,
+        0.056,
+        0.0467
+      ],
+      "label": "Rear Chassis Fan1 (chassis, rear)",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:5": {
+      "rect": [
+        0.9485,
+        0.6667,
+        0.0471,
+        0.0467
+      ],
+      "label": "Front Chassis Fan0 (chassis, front)",
+      "kind": "fan"
+    },
+    "fan:hp_wmi_sensors:6": {
+      "rect": [
+        0.9485,
+        0.7233,
+        0.0471,
+        0.0467
+      ],
+      "label": "Front Chassis Fan1 (chassis, front)",
+      "kind": "fan"
+    }
+  }
+}

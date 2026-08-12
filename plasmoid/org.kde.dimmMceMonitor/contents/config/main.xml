@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+
+    <entry name="statePath" type="String">
+      <label>Path to the JSON written by dimm-mce-export</label>
+      <default>/run/dimm-mce/state.json</default>
+    </entry>
+
+    <entry name="pollSeconds" type="Int">
+      <label>How often to re-read the state file</label>
+      <default>60</default>
+    </entry>
+
+    <!-- Notification behaviour. Defaults are deliberately conservative: a
+         degrading DIMM can emit thousands of corrected errors per hour and
+         one popup per event is worse than useless. -->
+    <entry name="notifyEnabled" type="Bool">
+      <label>Notify when new corrected errors appear</label>
+      <default>true</default>
+    </entry>
+
+    <entry name="notifyQuietMinutes" type="Int">
+      <label>Minimum minutes between corrected-error notifications</label>
+      <default>60</default>
+    </entry>
+
+    <entry name="notifyThreshold" type="Int">
+      <label>Only notify once this many new corrected errors have accumulated</label>
+      <default>1</default>
+    </entry>
+
+    <entry name="notifyUncorrectable" type="Bool">
+      <label>Always notify immediately on uncorrectable errors, ignoring the quiet period</label>
+      <default>true</default>
+    </entry>
+
+    <!-- Tray presence -->
+    <entry name="hideWhenClean" type="Bool">
+      <label>Keep the tray icon hidden while no errors are recorded</label>
+      <default>true</default>
+    </entry>
+
+    <entry name="badgeWindow" type="String">
+      <label>Which count the tray icon and badge reflect: ce_24h, ce_7d, ce_30d or ce_total</label>
+      <default>ce_30d</default>
+    </entry>
+
+    <!-- Board picture -->
+    <entry name="boardProfilePath" type="String">
+      <label>Board profile JSON; empty means auto-detect from DMI</label>
+      <default></default>
+    </entry>
+
+    <entry name="showBoardImage" type="Bool">
+      <label>Draw the board photo behind the slot overlay when a profile provides one</label>
+      <default>true</default>
+    </entry>
+
+    <entry name="imageOpacity" type="Double">
+      <label>Opacity of the board photo</label>
+      <default>0.45</default>
+    </entry>
+
+    <entry name="lastSeen" type="String">
+      <label>Internal: JSON map of slot key to last-notified counts</label>
+      <default></default>
+    </entry>
+
+    <entry name="baselineCommitted" type="Bool">
+      <label>Internal: whether a baseline has ever been stored. Distinguishes a
+      genuinely fresh install from configuration that has not finished loading.</label>
+      <default>false</default>
+    </entry>
+
+    <entry name="lastNotifyEpoch" type="Int">
+      <label>Internal: epoch seconds of the last corrected-error notification</label>
+      <default>0</default>
+    </entry>
+
+  </group>
+</kcfg>

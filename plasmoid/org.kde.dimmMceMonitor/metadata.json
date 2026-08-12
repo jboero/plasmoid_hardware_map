@@ -1,0 +1,25 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "boeroboy@gmail.com",
+                "Name": "John Boero"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Board health \u2014 ECC errors, temperatures, fans, PCIe/SATA/network ports on a picture of your board",
+        "Icon": "memory",
+        "Id": "org.kde.dimmMceMonitor",
+        "License": "GPL-2.0-or-later",
+        "Name": "Board Health Monitor",
+        "Version": "1.0.0",
+        "Website": "https://github.com/boeroboy/plasmoid_hardware_map",
+        "BugReportUrl": "https://github.com/boeroboy/plasmoid_hardware_map/issues"
+    },
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml",
+    "X-Plasma-NotificationArea": "true",
+    "X-Plasma-NotificationAreaCategory": "Hardware"
+}

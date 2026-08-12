@@ -1,0 +1,15 @@
+{
+  "boards": [
+    {
+      "dir": "hp-z840",
+      "name": "HP Z840 Workstation (photo)",
+      "match": {
+        "board_vendor": "Hewlett-Packard",
+        "board_name": "2129",
+        "product_name": "HP Z840 Workstation"
+      },
+      "confidence": "derived",
+      "components": 50
+    }
+  ]
+}

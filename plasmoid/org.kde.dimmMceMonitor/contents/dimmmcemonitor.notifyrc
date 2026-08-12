@@ -1,0 +1,18 @@
+[Global]
+IconName=memory
+Name=Board Health Monitor
+Comment=ECC and machine-check errors on system memory
+
+[Event/correctederrors]
+Name=Corrected memory errors
+Comment=New ECC-corrected errors have accumulated since the last notification
+IconName=data-warning
+Action=Popup
+
+[Event/uncorrectableerror]
+Name=Uncorrectable memory error
+Comment=ECC could not repair a memory error - data may be affected
+IconName=data-error
+Action=Popup|Sound
+Sound=dialog-error.ogg
+Urgency=Critical
