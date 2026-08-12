@@ -128,17 +128,69 @@ python3 -c "import json;[print(f\"{c['kind']:6} {c['id']:28} {c['label']}\") \
 
 | Kind | ID format | Notes |
 |---|---|---|
-| `dimm` | `dimm:s<socket>_ha<agent>_ch<channel>_d<slot>` | From EDAC. `ha` is the home agent; channel letter shown in the UI is `ch + 2*ha`. |
+| `dimm` | `dimm:s<socket>_ha<agent>_ch<channel>_d<slot>` | From EDAC, when the driver's `dimm_label` is one this tool recognises (`sb_edac`/`skx_edac`). `ha` is the home agent; channel letter shown in the UI is `ch + 2*ha`. `topology: "label"`. |
+| `dimm` | `dimm:s<mc>_ha<branch>_ch<channel>_d<slot>` | From EDAC's `dimm_location`, used when the vendor label is absent or in unfamiliar wording. Real channel/slot, but `<mc>` is a **memory-controller index, not a CPU socket**. `topology: "location"`. |
+| `dimm` | `dimm:mc<n>_dimm<n>` | The driver exposed neither. Sysfs position only, and deliberately not dressed up as a channel/slot. `topology: "index"`. |
+| `dimm` | `dimm:dmi:<locator>` | **Only when EDAC reports nothing** — see *Machines without ECC*. Aliased as `dimm:<locator>`, so labelling a rectangle with the silkscreen name is enough. |
 | `cpu` | `cpu:<socket>` | Carries package temperature. |
 | `pcie` | `pcie:<slot>` | From `/sys/bus/pci/slots`. Base numbers usually match the silkscreen `SLOTn`; suffixed ones like `2-1` are downstream ports of a bridge **on** a card and are rarely worth placing. |
 | `sata` | `sata:ata<n>` | Kernel ata port numbering **need not follow the silkscreen**. Verify before trusting. |
 | `net` | `net:<ifname>` | Only physical interfaces; bridges/veths are filtered out. |
 | `fan` | `fan:<chip>:<n>` | |
-| `temp` | `temp:<chip>:<n>` | There are usually dozens (one per core). Placing them all is rarely useful. |
+| `temp` | `temp:<chip>:<n>` | Per-core sensors (`Core 0`…, `Tccd1`…) are **not published** — a modern CPU contributes dozens and they bury everything else in the list view. The package reading answers the same question. They are still collected internally, because the CPU entry falls back to them on chips that label no package sensor. |
+
+Only `topology: "label"` justifies lining a DIMM rectangle up against a
+silkscreen. The other two give you counters you can trust attached to a slot name
+you cannot — the widget shows the caveat on the component itself.
+
+`<chip>` is the hwmon `name`, and it is **not always unique**: three NVMe drives
+all report `name=nvme`. Where a name repeats, the device is folded in —
+`temp:nvme.nvme0:1`, `temp:nvme.nvme1:1` — and the label is prefixed to match
+(`nvme0 Composite`). A name that occurs once is left bare, so existing profiles
+keep working. The discriminator is the kernel *device* name, never the `hwmonN`
+directory, which renumbers between boots exactly like `sdX` — except as a last
+resort where a repeated chip has no `device` link at all, since a colliding id
+makes the widget describe the wrong device, which is worse than a rectangle that
+needs remapping after a reboot.
 
 **You do not have to place everything.** Anything without a rectangle still
 appears in the list view. Place what you would physically go and touch: memory
 slots, expansion slots, ports, sockets.
+
+---
+
+## Machines without ECC
+
+Most consumer and laptop hardware cannot detect a memory error at all. Check
+what yours can do:
+
+```sh
+sudo dmidecode -t 16 | grep 'Error Correction Type'   # None = no detection, ever
+ls /sys/devices/system/edac/mc/                       # empty = nothing counting
+```
+
+`Error Correction Type: None` means the silicon does not notice a flipped bit,
+so EDAC stays empty permanently and there is **no driver that can fix that**.
+The widget used to say "Is an edac driver loaded?" here, which sent people
+hunting something that cannot exist.
+
+When EDAC reports nothing, memory inventory is built from SMBIOS type 17
+instead: `dimm:dmi:<locator>`, carrying size, type, speed, manufacturer, part
+number, serial and rank — all exact, straight from firmware.
+
+These are marked **`unknown`**, not `ok`, and that distinction is the whole
+point. Green would assert "this memory is fine", which is precisely the claim a
+machine with no error detection cannot support. Absence of reported errors is
+not evidence of health when nothing is looking. Same discipline as an inferred
+slot mapping: publish what is known, mark plainly what is not.
+
+Two consequences for profile authors:
+
+- The join described in *Module serial numbers* is unnecessary here — the
+  locator **is** the id, so serials need no inferred mapping and are stated as
+  fact rather than hedged.
+- Label a DIMM rectangle with the silkscreen locator and it works on both
+  paths: the ECC id on an EDAC machine, the `dimm:<locator>` alias otherwise.
 
 ---
 

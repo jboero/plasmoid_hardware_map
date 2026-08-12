@@ -24,11 +24,12 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 RAS_DB = "/var/lib/rasdaemon/ras-mc_event.db"
 EDAC_ROOT = "/sys/devices/system/edac/mc"
+HWMON_ROOT = "/sys/class/hwmon"
 OUT_DIR = "/run/dimm-mce"
 OUT_FILE = os.path.join(OUT_DIR, "state.json")
 
@@ -99,6 +100,89 @@ def parse_labels(label):
     return [m.groupdict() for m in LABEL_RE.finditer(label or "")]
 
 
+LOCATION_RE = re.compile(r"([a-z_]+)\s+(\d+)")
+
+
+def parse_dimm_location(loc):
+    """
+    EDAC's driver-independent topology string: 'channel 0 slot 0', sometimes
+    'branch 1 channel 0 slot 2'.
+
+    This is what makes non-Intel machines workable. `dimm_label` is composed by
+    each driver in its own wording, so LABEL_RE - which spells out sb_edac's
+    format - fits that family and nothing else. `dimm_location` is written by
+    EDAC core from the same struct for every driver.
+    """
+    return {k: int(v) for k, v in LOCATION_RE.findall((loc or "").lower())}
+
+
+def edac_topology(mc_idx, dimm_dir, label, path):
+    """
+    Coordinates for one EDAC DIMM node, and HOW they were obtained.
+
+    Three sources, best first, because what comes out of here is printed as a
+    slot name for someone holding a screwdriver:
+
+      "label"     the vendor `dimm_label` matched LABEL_RE. Socket, channel and
+                  slot are the vendor's own numbering, and this is the only
+                  source that justifies naming a CPU socket.
+      "location"  `dimm_location`. Real channel and slot numbers, but a memory
+                  controller index is not necessarily a CPU socket, so it is
+                  reported as `mcN` rather than dressed up as one.
+      "index"     neither was readable, so only the sysfs position is known. It
+                  is deliberately NOT translated into a channel/slot name:
+                  inventing plausible coordinates is how someone ends up pulling
+                  a healthy stick, which is the one thing this must never do.
+
+    The "label" branch is byte-identical to what this code did before the other
+    two existed, so no shipped board profile's slot ids move.
+    """
+    parsed = parse_labels(label)
+    if parsed:
+        p = parsed[0]
+        ch = chr(ord("A") + int(p["chan"]) + 2 * int(p["ha"]))
+        return {
+            "key": slot_key(p["socket"], p["ha"], p["chan"], p["slot"]),
+            "socket": int(p["socket"]), "ha": int(p["ha"]),
+            "channel": int(p["chan"]), "slot": int(p["slot"]),
+            "display_label": f"CPU{p['socket']} channel {ch} slot {p['slot']}",
+            "topology": "label",
+        }
+
+    loc = parse_dimm_location(read(os.path.join(path, "dimm_location")))
+    if "channel" in loc:
+        ha, chan = loc.get("branch", 0), loc["channel"]
+        slot = loc.get("slot", 0)
+        return {
+            "key": slot_key(mc_idx, ha, chan, slot),
+            "socket": mc_idx, "ha": ha, "channel": chan, "slot": slot,
+            "display_label": f"mc{mc_idx} channel {chan} slot {slot}",
+            "topology": "location",
+        }
+
+    # `channel` here is the sysfs position, not a memory channel. Nothing
+    # derives a channel letter from it: the key deliberately does not match the
+    # s<n>_ha<n>_ch<n>_d<n> shape the UI parses, so it prints this key verbatim
+    # instead of inventing "channel C". It also leaves every node in a peer
+    # group of one, so no module is ever implicated by association with a
+    # neighbour we cannot actually prove it shares a channel with.
+    n = int(re.sub(r"\D", "", dimm_dir) or 0)
+    return {
+        "key": f"mc{mc_idx}_{dimm_dir}",
+        "socket": mc_idx, "ha": 0, "channel": n, "slot": 0,
+        "display_label": f"mc{mc_idx} {dimm_dir}",
+        "topology": "index",
+    }
+
+
+def edac_present():
+    """Whether the kernel exposes any memory controller, usable or not."""
+    try:
+        return any(m.startswith("mc") for m in os.listdir(EDAC_ROOT))
+    except OSError:
+        return False
+
+
 def read_edac():
     slots = {}
     if not os.path.isdir(EDAC_ROOT):
@@ -107,24 +191,33 @@ def read_edac():
         mc_path = os.path.join(EDAC_ROOT, mc)
         if not mc.startswith("mc") or not os.path.isdir(mc_path):
             continue
+        mc_idx = int(re.sub(r"\D", "", mc) or 0)
         for dimm in sorted(os.listdir(mc_path)):
             if not dimm.startswith("dimm"):
                 continue
             d = os.path.join(mc_path, dimm)
-            label = read(os.path.join(d, "dimm_label"))
-            parsed = parse_labels(label)
-            if not parsed:
+            if not os.path.isdir(d):
                 continue
-            p = parsed[0]
-            key = slot_key(p["socket"], p["ha"], p["chan"], p["slot"])
+            label = read(os.path.join(d, "dimm_label"))
+            top = edac_topology(mc_idx, dimm, label, d)
+            size_mb = read_int(os.path.join(d, "size"))
+            # Drivers that expose a node per SLOT rather than per fitted module
+            # report size 0 for an empty one, and an empty slot must not appear
+            # as a monitored module. Applied only to the fallback paths so the
+            # vendor-label path keeps behaving exactly as it always did.
+            if top["topology"] != "label" and not size_mb:
+                continue
+            key = top["key"]
             slots[key] = {
                 "key": key,
-                "socket": int(p["socket"]), "ha": int(p["ha"]),
-                "channel": int(p["chan"]), "slot": int(p["slot"]),
+                "socket": top["socket"], "ha": top["ha"],
+                "channel": top["channel"], "slot": top["slot"],
+                "display_label": top["display_label"],
+                "topology": top["topology"],
                 "edac_label": label, "edac_mc": mc, "edac_dimm": dimm,
                 "mem_type": read(os.path.join(d, "dimm_mem_type")),
                 "edac_mode": read(os.path.join(d, "dimm_edac_mode")),
-                "size_mb": read_int(os.path.join(d, "size")),
+                "size_mb": size_mb,
                 "ce_sysfs": read_int(os.path.join(d, "dimm_ce_count"), 0) or 0,
                 "ue_sysfs": read_int(os.path.join(d, "dimm_ue_count"), 0) or 0,
             }
@@ -211,8 +304,7 @@ def neighbour_name(edac, me):
     for o in edac.values():
         if (o["socket"] == me["socket"] and o["ha"] == me["ha"]
                 and o["channel"] == me["channel"] and o["slot"] != me["slot"]):
-            ch = chr(ord("A") + o["channel"] + 2 * o["ha"])
-            return f"CPU{o['socket']} channel {ch} slot {o['slot']}"
+            return o["display_label"]
     return None
 
 
@@ -227,8 +319,7 @@ def dimm_components(edac, ras):
         ambiguous = r.get("exact_events", 0) == 0 and r.get("ambiguous_events", 0) > 0
 
         gb = round(s["size_mb"] / 1024) if s["size_mb"] else None
-        ch = chr(ord("A") + s["channel"] + 2 * s["ha"])
-        label = f"CPU{s['socket']} channel {ch} slot {s['slot']}"
+        label = s["display_label"]
 
         proven = r.get("ce_proven", 0)
         shared = r.get("ce_shared", 0)
@@ -247,7 +338,10 @@ def dimm_components(edac, ras):
         elif ce_30d > 0:
             status, headline = WARN, f"{ce_30d} ECC errors (30 days)"
         elif ce_total > 0:
-            status, headline = OK, f"{ce_total} ECC errors (all historical)"
+            # With no rasdaemon record these came from EDAC sysfs, which resets
+            # every reboot. Calling that "all historical" overstates it.
+            status, headline = OK, (f"{ce_total} ECC errors (all historical)"
+                                    if r else f"{ce_total} ECC errors since boot")
         else:
             status, headline = OK, "No ECC errors"
 
@@ -279,10 +373,38 @@ def dimm_components(edac, ras):
                     f"{shared} could not be told apart from its channel "
                     f"neighbour. The proven count is what implicates it.")
 
+        # Say so when the slot NAME is weaker evidence than the error counts.
+        # The counters are exact either way; what varies is how confidently the
+        # name identifies a physical socket someone can go and open.
+        if s["topology"] == "location":
+            topo = (f"Channel and slot come from EDAC's own topology rather "
+                    f"than a vendor label, so memory controller {s['socket']} "
+                    f"is not necessarily CPU socket {s['socket']}. The error "
+                    f"counts are exact; the slot name is positional.")
+        elif s["topology"] == "index":
+            topo = ("This driver reports neither a label this tool recognises "
+                    "nor a channel/slot location, so only the module's position "
+                    "in EDAC sysfs is known. Its ECC counts are exact, but "
+                    "WHICH physical slot it sits in cannot be determined from "
+                    "software - identify it by removing modules one at a time, "
+                    "or by matching size and type against dmidecode -t 17.")
+        else:
+            topo = None
+        if topo:
+            note = f"{note} {topo}" if note else topo
+
         c = comp(f"dimm:{key}", "dimm", label, status, headline, metrics, note)
         c.update({
+            # The widget's per-slot notification baseline is keyed on this. It
+            # was never published, so every slot read back as `undefined` and
+            # collapsed into a single baseline entry.
+            "key": key,
             "socket": s["socket"], "ha": s["ha"], "channel": s["channel"],
             "slot": s["slot"], "edac_label": s["edac_label"],
+            # How the slot name was arrived at - see edac_topology(). Profile
+            # authors need this: only "label" justifies trusting the CPU/channel
+            # naming enough to line it up against a silkscreen.
+            "topology": s["topology"],
             "ce_total": ce_total, "ue_total": ue_total,
             "ce_30d": ce_30d, "ce_24h": ce_24h,
             "ce_7d": r.get("ce_7d", 0),
@@ -294,16 +416,182 @@ def dimm_components(edac, ras):
     return out
 
 
+def smbios_dimm_components(dmi_slots, ecc_capable):
+    """
+    Memory inventory built from SMBIOS type 17, for machines where EDAC is empty.
+
+    On hardware without ECC there is no memory controller to poll and there
+    never will be: SMBIOS type 16 reporting `Error Correction Type: None` means
+    the silicon cannot notice a flipped bit, let alone count one. EDAC stays
+    empty, dimm_components() yields nothing, and the widget's headline section
+    is blank on most consumer and laptop hardware - while type 17 has been
+    sitting there the whole time with size, speed, part number and serial for
+    every stick fitted.
+
+    These records are INVENTORY, not health. Status is `unknown`, never `ok`,
+    because green asserts "this memory is fine" and that is precisely the claim
+    this machine cannot support. Same discipline as an inferred slot mapping:
+    publish what is known, mark plainly what is not.
+
+    Counters are present and zero so the memory views and the notification
+    baseline can treat these like any other slot without special-casing; they
+    can never move, because nothing is counting.
+    """
+    # SMBIOS lists devices in firmware order, which on this Dell is C, D, A, B.
+    # Sorted by locator so the memory group reads the way the slots are labelled,
+    # with digits compared numerically ("DIMM 10" after "DIMM 9", not before).
+    def locator_order(s):
+        loc = (s.get("locator") or "").lower()
+        return [int(p) if p.isdigit() else p
+                for p in re.split(r"(\d+)", loc)]
+
+    out = []
+    for s in sorted(dmi_slots, key=locator_order):
+        loc = s.get("locator") or "unknown"
+        key = re.sub(r"[^a-z0-9]+", "-", loc.lower()).strip("-") or "unknown"
+
+        if not s.get("populated"):
+            c = comp(f"dimm:dmi:{key}", "dimm", loc, EMPTY, "empty slot",
+                     [], None, present=False)
+        else:
+            gb = s.get("size_gb")
+            size = f"{gb:g} GB" if gb else ""
+            headline = " ".join(x for x in (size, s.get("type", ""),
+                                            s.get("speed", "")) if x)
+            metrics = []
+            for lbl, val in (("Size", size), ("Type", s.get("type", "")),
+                             ("Speed", s.get("speed", "")),
+                             ("Manufacturer", s.get("manufacturer", "")),
+                             ("Part number", s.get("part", "")),
+                             ("Serial", s.get("serial", "")),
+                             ("Ranks", s.get("rank", ""))):
+                if val:
+                    metrics.append(metric(lbl, val))
+            note = (
+                "Inventory only. This machine's memory is not ECC, so a "
+                "corrupted bit is neither corrected nor counted - there is no "
+                "error history to show and no driver that could produce one. "
+                "Size, part and serial come straight from SMBIOS and are exact."
+                if not ecc_capable else
+                "Inventory only. This memory is ECC-capable, but the kernel is "
+                "exposing no EDAC memory controller, so nothing is counting "
+                "errors. Loading the edac driver for this chipset would enable "
+                "monitoring.")
+            c = comp(f"dimm:dmi:{key}", "dimm", loc, UNKNOWN, headline,
+                     metrics, note)
+
+        # Unlike an EDAC key, a silkscreen locator is exactly what a board
+        # profile labels its DIMM rectangles with, so it doubles as an alias and
+        # these slots land on the picture with no profile change.
+        c["aliases"] = [f"dimm:{loc}"]
+        c.update({
+            "key": f"dmi:{key}", "dmi_locator": loc,
+            "ce_total": 0, "ue_total": 0, "ce_30d": 0, "ce_24h": 0, "ce_7d": 0,
+            "ecc": False if not ecc_capable else True,
+            "size_mb": int(gb * 1024) if s.get("populated") and s.get("size_gb")
+                       else None,
+        })
+        out.append(c)
+    return out
+
+
+def read_memory_array_ecc():
+    """
+    SMBIOS type 16 'Error Correction Type' - whether this machine's memory can
+    detect errors *at all*.
+
+    Worth a second dmidecode call because it decides what to tell someone when
+    EDAC is empty. "Is an edac driver loaded?" is actively misleading on a
+    non-ECC machine: no driver can count errors the hardware does not detect, so
+    the message sends people on a hunt that cannot succeed. Returns the raw
+    SMBIOS string, or "" if it could not be read.
+    """
+    try:
+        out = subprocess.run(["dmidecode", "-t", "16"], capture_output=True,
+                             text=True, timeout=15, check=True).stdout
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return ""
+    found = []
+    for line in out.splitlines():
+        k, _, v = line.strip().partition(":")
+        if k.strip() == "Error Correction Type":
+            found.append(v.strip())
+    # A machine may report several arrays; any ECC-capable one is the answer.
+    for f in found:
+        if f and f.lower() not in ("none", "unknown", "other"):
+            return f
+    return found[0] if found else ""
+
+
+def ecc_is_capable(ecc_type):
+    return bool(ecc_type) and ecc_type.lower() not in ("none", "unknown", "other")
+
+
 # ================================================================ hwmon: temp/fan
+
+def hwmon_device_name(base):
+    """
+    Kernel name of the device a hwmon chip hangs off, e.g. 'nvme0', 'coretemp.0'.
+
+    Deliberately NOT the hwmonN directory name: hwmon numbering is assigned in
+    probe order and shuffles between boots, so keying an id on it would break
+    every board profile rectangle on reboot - the same trap as naming a drive
+    'sdc'. The device name is what the kernel calls the hardware itself.
+    """
+    link = os.path.join(base, "device")
+    # Must check existence first: realpath() on a missing path returns that path
+    # unchanged, so a chip with no device link yielded the basename "device" -
+    # identical for every such chip, which silently recreated the duplicate-id
+    # bug this function exists to prevent.
+    if not os.path.exists(link):
+        return ""
+    try:
+        return os.path.basename(os.path.realpath(link))
+    except OSError:
+        return ""
+
+
+def hwmon_chips():
+    """
+    Every hwmon chip as (dir, chip_name, id_key, label_prefix).
+
+    `id_key` is the chip name alone while that name is unique on this machine,
+    which keeps ids stable for existing board profiles. Machines with several
+    identical controllers - three NVMe drives all reporting name='nvme' - would
+    otherwise emit three components sharing the id 'temp:nvme:1', and the widget
+    resolves an id to the FIRST match, so every rectangle and every tooltip
+    pointed at drive one. Those get the device name folded in.
+
+    The label is prefixed for the same reason: three rows all reading
+    'Composite  39 °C' are indistinguishable to whoever is trying to work out
+    which drive is cooking.
+    """
+    if not os.path.isdir(HWMON_ROOT):
+        return []
+    found = []
+    for h in sorted(os.listdir(HWMON_ROOT)):
+        base = os.path.join(HWMON_ROOT, h)
+        found.append((base, read(os.path.join(base, "name")) or h))
+
+    dupes = {n for n, c in Counter(n for _, n in found).items() if c > 1}
+    out = []
+    for base, chip in found:
+        if chip not in dupes:
+            out.append((base, chip, chip, ""))
+            continue
+        # Last resort is the hwmonN directory, which does NOT survive a reboot.
+        # Unstable-but-unique beats stable-but-colliding: duplicate ids make the
+        # widget describe the wrong device, which is worse than a rectangle that
+        # needs remapping. Only reached when a repeated chip name has no device
+        # link at all.
+        dev = hwmon_device_name(base) or os.path.basename(base)
+        out.append((base, chip, f"{chip}.{dev}", f"{dev} "))
+    return out
+
 
 def hwmon_components():
     temps, fans = [], []
-    root = "/sys/class/hwmon"
-    if not os.path.isdir(root):
-        return temps, fans
-    for h in sorted(os.listdir(root)):
-        base = os.path.join(root, h)
-        chip = read(os.path.join(base, "name")) or h
+    for base, chip, key, prefix in hwmon_chips():
         try:
             entries = os.listdir(base)
         except OSError:
@@ -317,7 +605,9 @@ def hwmon_components():
                 if raw is None:
                     continue
                 c = raw / 1000.0
-                name = read(os.path.join(base, f"temp{n}_label")) or f"{chip} temp {n}"
+                lbl = read(os.path.join(base, f"temp{n}_label"))
+                name = (prefix + lbl if lbl
+                        else f"{prefix or chip + ' '}temp {n}")
                 crit = read_int(os.path.join(base, f"temp{n}_crit"))
                 mx = read_int(os.path.join(base, f"temp{n}_max"))
                 crit_c = crit / 1000.0 if crit else None
@@ -336,8 +626,17 @@ def hwmon_components():
                     mets.append(metric("High threshold", f"{max_c:.0f}", "°C"))
                 if crit_c:
                     mets.append(metric("Critical threshold", f"{crit_c:.0f}", "°C"))
-                temps.append(comp(f"temp:{chip}:{n}", "temp", name, status,
+                temps.append(comp(f"temp:{key}:{n}", "temp", name, status,
                                   f"{c:.0f} °C", mets))
+                # Scratch field: cpu_components() needs to know which chip a
+                # reading came from to find a package temperature without
+                # relying on vendor label wording. Stripped before publishing.
+                #
+                # The DISAMBIGUATED key, not the bare chip name - a dual-socket
+                # AMD box has two chips both named `k10temp`, and grouping on the
+                # bare name merged them, so socket 1 was handed socket 0's
+                # temperature. Still prefix-matches CPU_TEMP_CHIPS either way.
+                temps[-1]["_chip"] = key
                 continue
 
             m = re.fullmatch(r"fan(\d+)_input", f)
@@ -346,11 +645,13 @@ def hwmon_components():
                 rpm = read_int(os.path.join(base, f))
                 if rpm is None:
                     continue
-                name = read(os.path.join(base, f"fan{n}_label")) or f"{chip} fan {n}"
+                lbl = read(os.path.join(base, f"fan{n}_label"))
+                name = (prefix + lbl if lbl
+                        else f"{prefix or chip + ' '}fan {n}")
                 # Peer comparison happens after the walk, once every fan is
                 # known - a single RPM number in isolation says nothing about
                 # health, but "half the speed of its four siblings" does.
-                fans.append(comp(f"fan:{chip}:{n}", "fan", name, OK,
+                fans.append(comp(f"fan:{key}:{n}", "fan", name, OK,
                                  f"{rpm} RPM",
                                  [metric("Speed", rpm, "RPM")]))
                 fans[-1]["_rpm"] = rpm
@@ -414,6 +715,84 @@ def grade_fans(fans):
     return fans
 
 
+# hwmon chips that report a CPU's own temperature. Ordered by nothing in
+# particular; membership is all that matters.
+CPU_TEMP_CHIPS = ("coretemp", "k10temp", "zenpower", "cpu_thermal")
+
+# Per-core and per-die sensors: coretemp's "Core 0".."Core N" and k10temp's
+# "Tccd1".."TccdN". Matched at the end of the label so a chip-disambiguating
+# prefix ("0000:00:18.3 Tccd1") still counts.
+CORE_TEMP_RE = re.compile(r"(?:^|\s)(core\s*\d+|tccd\d+)$", re.I)
+
+
+def is_core_temp(t):
+    """
+    Whether a temp reading is one of the per-core ones.
+
+    These are dropped from the published component list. A modern CPU
+    contributes dozens, they bury every other component in the list view, and
+    the package reading already answers the only question being asked - is this
+    CPU too hot. They are still *collected*, because cpu_package_temp() falls
+    back to them on chips that label no package sensor at all.
+    """
+    return bool(CORE_TEMP_RE.search((t.get("label") or "").strip()))
+
+
+def temp_reading(t):
+    """The numeric °C behind a temp component, or -1 if it cannot be read."""
+    for m in t.get("metrics", []):
+        if m["label"] == "Temperature":
+            try:
+                return float(m["value"])
+            except (TypeError, ValueError):
+                break
+    return -1.0
+
+
+def cpu_package_temp(temps, sock, index):
+    """
+    The package temperature for one socket, on Intel *or* anything else.
+
+    Intel's coretemp labels it outright ("Package id 0"), which is all this used
+    to look for - so every AMD machine showed its CPU as `unknown` with no
+    temperature while the reading sat in the Temperatures group untouched.
+
+    AMD's k10temp names nothing "package". It reports **Tdie**, the actual
+    junction temperature, and **Tctl**, which is Tdie plus a fan-control offset
+    that reads high on some parts. Tdie is therefore always preferred and Tctl
+    used only in its absence; picking Tctl first would overstate CPU temperature
+    by up to ~20 °C on affected Threadrippers.
+
+    No socket mapping is invented: where a machine has several CPU sensor chips,
+    the Nth chip in sysfs order is taken for the Nth socket, and if there are
+    fewer chips than sockets they all fall back to the first.
+    """
+    exact = (f"package id {sock}", f"cpu{sock} temperature")
+    for t in temps:
+        if t["label"].lower() in exact:
+            return t
+
+    mine = [t for t in temps
+            if any(t.get("_chip", "").startswith(c) for c in CPU_TEMP_CHIPS)]
+    if not mine:
+        return None
+
+    chips = []
+    for t in mine:
+        if t.get("_chip") not in chips:
+            chips.append(t.get("_chip"))
+    chip = chips[index] if index < len(chips) else chips[0]
+    mine = [t for t in mine if t.get("_chip") == chip]
+
+    for want in ("tdie", "tctl"):
+        for t in mine:
+            if t["label"].lower().endswith(want):
+                return t
+    # Nothing named a package: use the hottest sensor on the CPU's own chip. It
+    # is still a CPU reading, just not a package-specific one.
+    return max(mine, key=temp_reading, default=None)
+
+
 def cpu_components(temps):
     """One entry per physical socket, carrying its package temperature."""
     out = []
@@ -436,10 +815,8 @@ def cpu_components(temps):
             model = line.split(":", 1)[1].strip()
             break
 
-    for sock in sorted(sockets or {"0": 0}):
-        pkg = next((t for t in temps
-                    if t["label"].lower() in (f"package id {sock}",
-                                              f"cpu{sock} temperature")), None)
+    for index, sock in enumerate(sorted(sockets or {"0": 0})):
+        pkg = cpu_package_temp(temps, sock, index)
         status = pkg["status"] if pkg else UNKNOWN
         headline = pkg["headline"] if pkg else "present"
         mets = [metric("Model", model)] if model else []
@@ -1339,15 +1716,41 @@ def build_state():
 
     edac = read_edac()
     ras, ras_err = read_rasdaemon(now)
-    if ras_err:
+    dmi_slots = read_dmi_slots()
+    ecc_type = read_memory_array_ecc()
+    ecc_capable = ecc_is_capable(ecc_type)
+
+    # rasdaemon's absence only matters where there is something for it to log.
+    if ras_err and (edac or ecc_capable):
         warnings.append(ras_err)
     if not edac:
-        warnings.append("EDAC exposes no memory controllers - no ECC monitoring "
-                        "is possible. Is an edac driver loaded?")
+        # Ordered by how definitive the explanation is. Non-ECC memory settles
+        # it regardless of what EDAC is doing; only claim "no driver" once the
+        # kernel really is exposing no controller, or the message sends someone
+        # after a driver that is already loaded and working.
+        if ecc_type and not ecc_capable:
+            warnings.append(
+                f"This machine's memory is not ECC (SMBIOS reports error "
+                f"correction: {ecc_type}), so memory errors cannot be detected "
+                f"or counted in hardware. Memory below is inventory only.")
+        elif edac_present():
+            warnings.append(
+                "EDAC has memory controllers but exposed no usable DIMM nodes, "
+                "so per-module ECC counts are unavailable. Memory below is "
+                "inventory only. Please report this with the contents of "
+                "/sys/devices/system/edac/mc/ - it is a gap in this tool, not "
+                "a fault on your machine.")
+        else:
+            warnings.append("EDAC exposes no memory controllers - no ECC "
+                            "monitoring is possible. Is an edac driver loaded?")
 
     temps, fans = hwmon_components()
     components = []
     components += dimm_components(edac, ras)
+    # Fallback, not a supplement: where EDAC reports modules, it is the better
+    # source and already covers them.
+    if not edac:
+        components += smbios_dimm_components(dmi_slots, ecc_capable)
     components += cpu_components(temps)
     now_iso = now.astimezone().isoformat(timespec="seconds")
     # Disks are built FIRST: connectors inherit the health of the drive plugged
@@ -1359,7 +1762,10 @@ def build_state():
     components += sasport_components(by_block)
     components += disks
     components += net_components()
-    components += temps
+    # Published without the per-core sensors - see is_core_temp(). cpu_components
+    # above was handed the full list, so its package-temperature fallback still
+    # has them available.
+    components += [t for t in temps if not is_core_temp(t)]
     components += fans
 
     tt = (ras or {}).get("true_totals")
@@ -1382,6 +1788,7 @@ def build_state():
         c.pop("_detail", None)
         c.pop("_pci_path", None)
         c.pop("_has_connector", None)
+        c.pop("_chip", None)
 
     by_status = defaultdict(int)
     for c in components:
@@ -1400,8 +1807,12 @@ def build_state():
             "components": len(components),
             "error": by_status[ERROR], "warn": by_status[WARN],
             "ok": by_status[OK], "empty": by_status[EMPTY],
+            # Was omitted, so the per-status figures did not add up to the
+            # component total on any machine reporting an `unknown`.
+            "unknown": by_status[UNKNOWN],
         },
-        "dmi_slots": read_dmi_slots(),
+        "dmi_slots": dmi_slots,
+        "memory_ecc": ecc_type,
         "history": (ras or {}).get("history", []),
         "warnings": warnings,
     }

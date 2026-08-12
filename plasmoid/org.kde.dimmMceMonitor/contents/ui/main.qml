@@ -301,7 +301,12 @@ PlasmoidItem {
                 var due = (s.ue_total || 0) - (was.ue || 0)
                 if (dce > 0 || due > 0)
                     moved[s.key] = { ce: Math.max(0, dce), ue: Math.max(0, due),
-                                     label: s.edac_label, ambiguous: !!s.attribution_ambiguous }
+                                     // The component label is the readable one
+                                     // ("CPU0 channel A slot 0", or "mc1 dimm0"
+                                     // where the driver exposes no vendor
+                                     // label); edac_label may be empty.
+                                     label: s.label || s.edac_label,
+                                     ambiguous: !!s.attribution_ambiguous }
             }
         }
         root.pendingSlots = moved
@@ -310,7 +315,11 @@ PlasmoidItem {
 
     function slotShortName(key, rec) {
         var m = /^s(\d+)_ha(\d+)_ch(\d+)_d(\d+)$/.exec(key)
-        if (!m) return key
+        // Keys only take this shape where the driver gave real socket/channel
+        // coordinates. Anything else (a `mc1_dimm0` positional key) has no
+        // channel letter to compute, so show the collector's own label rather
+        // than a raw key.
+        if (!m) return (rec && rec.label) ? rec.label : key
         var ch = String.fromCharCode(65 + parseInt(m[3]) + 2 * parseInt(m[2]))
         return i18n("CPU%1 ch%2 slot %3", m[1], ch, m[4])
     }
