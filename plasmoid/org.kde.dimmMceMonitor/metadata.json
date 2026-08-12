@@ -9,6 +9,7 @@
         ],
         "Category": "System Information",
         "Description": "Board health \u2014 ECC errors, temperatures, fans, PCIe/SATA/network ports on a picture of your board",
+        "EnabledByDefault": true,
         "Icon": "memory",
         "Id": "org.kde.dimmMceMonitor",
         "License": "GPL-2.0-or-later",

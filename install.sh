@@ -78,12 +78,21 @@ $(say "Done.")
 To put YOUR motherboard picture behind the components, see:
   $SRC/AGENTS.md   (also installed to ${XDG_DATA_HOME:-$HOME/.local/share}/dimm-mce-monitor/)
 
-Add it from the system tray:
+RESTART THE SHELL, or the widget will not appear at all:
+  systemctl --user restart plasma-plasmashell
+
+The tray only discovers new entries at startup. On restart this one enables
+itself (metadata sets EnabledByDefault), so no clicking is needed. If you would
+rather place it by hand:
   right-click the panel -> Configure System Tray -> Entries
   set "Board Health Monitor" to Shown or Auto
+Note that "Always display all entries" does NOT enable a disabled entry - it
+only controls where enabled ones are drawn.
 
-The icon hides itself while no errors are recorded (configurable). Verify the
-collector with:
+The icon hides itself while no errors are recorded, so on a healthy machine it
+sits in the collapsed drawer rather than the visible row. Untick "Keep the tray
+icon hidden while no errors are recorded" in the widget's settings if you want it
+always visible. Verify the collector with:
   systemctl status dimm-mce-export.timer
   sudo /usr/local/bin/dimm-mce-export --verbose
 
