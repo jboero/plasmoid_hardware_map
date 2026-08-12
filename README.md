@@ -8,6 +8,11 @@ It sits quietly in the tray and only asks for attention when something changes.
 
 ![Board view](doc/board-view.png)
 
+Hover anything for detail that says what the numbers mean, and how far to trust
+them:
+
+![Component detail](doc/board-detail.png)
+
 ## Why
 
 Most hardware monitors give you a number. A number is useless if you do not
