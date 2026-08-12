@@ -106,6 +106,7 @@ this project cares most about avoiding.
 
 GPL-2.0-or-later. See [LICENSE](LICENSE).
 
-The bundled example board profile includes imagery of an HP Z840 mainboard;
-see [boards/hp-z840/README.md](boards/hp-z840/README.md) for its provenance and
-redistribution status.
+The bundled example board profile includes an original photograph of an HP Z840
+mainboard by the project author, which ships under the same licence. No vendor
+documentation or vendor artwork is redistributed — see
+[boards/hp-z840/README.md](boards/hp-z840/README.md).

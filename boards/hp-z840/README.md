@@ -1,23 +1,17 @@
 # HP Z840 Workstation
 
-> **Image provenance — resolve before redistributing.**
-> `board.webp` and `board-diagram.png` were supplied locally and their
-> copyright status is **not established**. `board-diagram.png` in particular
-> appears to derive from HP service documentation, which is HP's copyright and
-> is *not* licensed for redistribution under this project's GPL.
+> **Image provenance.** `board.webp` is an original photograph by the project
+> author, background removed, and ships under the project licence.
 >
-> Before this profile ships in a public release or a KDE Store package, either
-> replace both with a photograph you took yourself, or drop the imagery and keep
-> the profile geometry only — the widget falls back to its list view when a
-> profile has no usable image, so the profile stays useful either way.
+> HP's service-manual diagrams were used as a *reference* while deriving the
+> component positions and connector names, but are HP's copyright and are
+> **deliberately not redistributed here**. Do not add them back. If you need
+> them for verification, get them from HP's own documentation.
 
 Board `Hewlett-Packard` / `2129`, dual LGA2011-3, 16 DIMM slots, 7 PCIe slots.
 
 `board.webp` is a straight-on photograph of a real Z840 board with the
-background removed, 1358×1200. `board-diagram.png` plus
-`profile-diagram.json.alt` are an earlier profile built against HP's "Figure 6 —
-loading order for dual CPU configurations"; kept because the diagram is cleaner
-for reading population order, but the photo profile is the active one.
+background removed, 1358×1200. It is the active — and only — profile image.
 
 ## Verified
 
