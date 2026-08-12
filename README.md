@@ -40,7 +40,7 @@ list of everything it discovered. The picture is a convenience layer.
 ## Install
 
 ```sh
-git clone https://github.com/<org>/plasmoid_hardware_map
+git clone https://github.com/jboero/plasmoid_hardware_map
 cd plasmoid_hardware_map
 ./install.sh
 ```
