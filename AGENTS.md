@@ -10,6 +10,26 @@ before assuming a step can be skipped.
 
 ---
 
+## If you are a human reading this
+
+You do not have to do this by hand. This file is written for coding assistants,
+and `CLAUDE.md` is symlinked to it so [Claude Code](https://claude.com/claude-code)
+loads it automatically. Clone the repo, put a photo of your board somewhere, and
+ask for a profile.
+
+The work is mostly *reading* — silkscreen labels at 16× zoom, `dmidecode` output,
+sysfs component IDs — and then measuring rectangles and checking them by
+rendering the overlay back onto the picture. That is a good fit for an assistant
+and a tedious afternoon for a person.
+
+Two things to insist on, whoever does it:
+
+1. **Render the overlay and look at it.** Not the JSON — the picture. Every
+   rectangle must visibly land on the part it names.
+2. **Mark inference as inference.** See *Confidence* below. A confidently wrong
+   locator↔channel mapping sends someone to pull a healthy DIMM, which is the
+   worst thing this project can do.
+
 ## Quick version
 
 ```sh

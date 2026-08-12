@@ -89,6 +89,44 @@ format, and the traps worth knowing before you trust a mapping.
 
 Board profiles are welcome as pull requests.
 
+### Let an AI assistant do the tedious part
+
+This repo ships an [AGENTS.md](AGENTS.md) written for coding assistants, with
+`CLAUDE.md` symlinked to it so [Claude Code](https://claude.com/claude-code)
+picks it up automatically. Clone the repo, drop a photo of your board in, and
+ask:
+
+> Add a board profile for my motherboard using ~/Desktop/my-board.png
+
+It turns out to be a genuinely good fit for the job, because most of the work is
+reading:
+
+- **Reading the silkscreen.** Zooming a board photo until `CPU0-DIMM1` or the
+  `s` in `sSATA0` is legible, and getting the numbering direction right, is
+  slow, fiddly, and exactly the kind of thing worth automating.
+- **Cross-checking against the machine.** Component IDs come from EDAC, sysfs
+  and `dmidecode`; an assistant can query all of them and match them to what is
+  printed on the board, instead of you transcribing by hand.
+- **Measuring rectangles.** Coordinates can be derived and then *verified by
+  rendering the overlay back onto the photo* — which catches mistakes that look
+  fine in a JSON file.
+- **Separating fact from inference.** The profile's `confidence` field, and the
+  distinction between what firmware states and what was guessed, matter more
+  than pixel accuracy. A wrong-but-confident mapping is the one failure mode
+  that actually hurts.
+
+This profile was built that way. It also found several real hardware faults on
+the machine in the process, which was not the plan.
+
+**Check its work anyway.** Ask it to render the overlay so you can *see* every
+rectangle land on the part it names, and treat any locator↔channel mapping as
+inferred until you have pulled a stick and watched a serial disappear. The
+project's own board profile is still marked `derived` for exactly that reason.
+
+Also worth knowing before you post a screenshot: hovering a network port shows
+its **MAC address**, and drive tooltips show **serial numbers**. Nothing is
+transmitted anywhere, but they are visible on screen.
+
 ## Honesty about inference
 
 Some mappings cannot be derived, only guessed — notably which silkscreened DIMM
