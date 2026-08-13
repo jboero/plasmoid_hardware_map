@@ -11,3 +11,7 @@ dist/
 *.bak
 *.orig
 scratch/
+
+# Python bytecode from the collector and tools
+__pycache__/
+*.pyc

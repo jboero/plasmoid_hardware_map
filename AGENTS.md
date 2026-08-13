@@ -348,9 +348,16 @@ qualifier without first *proving* the mapping by pulling a stick — see
 
 ## Gotchas
 
-- The paths and the applet ID still say `dimm-mce` / `dimmMceMonitor`. That is
-  historical — this began as a DIMM-only ECC monitor. Renaming would orphan
-  existing tray entries, so the names stayed.
+- The **runtime paths** still say `dimm-mce` — `/run/dimm-mce/state.json`,
+  `dimm-mce-export`, `~/.local/share/dimm-mce-monitor/`, and
+  `dimmmcemonitor.notifyrc`. That is historical; this began as a DIMM-only ECC
+  monitor. Renaming them would break every existing collector install and
+  board directory for no user-visible gain, so they stayed.
+- The **applet ID** was renamed for the first KDE Store release, from
+  `org.kde.dimmMceMonitor` to `io.github.jboero.hardwaremap`: `org.kde.*` is
+  reserved for projects hosted by KDE itself. `install.sh` removes the old
+  package so it does not linger as a second tray entry. Do not reintroduce the
+  old ID.
 - `Item` in QML already defines `state` **and** `baseline` as properties.
   Declaring your own with those names shadows or hard-fails with
   `Cannot override FINAL property`, which kills the whole applet silently.

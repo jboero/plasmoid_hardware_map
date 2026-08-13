@@ -11,7 +11,12 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APPLET_ID="org.kde.dimmMceMonitor"
+APPLET_ID="io.github.jboero.hardwaremap"
+
+# Renamed before the first KDE Store release: org.kde.* is reserved for
+# projects hosted by KDE itself. Left in place, the old package keeps showing up
+# as a second, stale tray entry alongside the new one.
+LEGACY_APPLET_ID="org.kde.dimmMceMonitor"
 BOARDS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/dimm-mce-monitor/boards"
 
 say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -50,22 +55,36 @@ fi
 say "Installing docs"
 install -Dm644 "$SRC/AGENTS.md" "$BOARDS_DIR/../AGENTS.md"
 
-say "Installing board profiles to $BOARDS_DIR"
-mkdir -p "$BOARDS_DIR"
-cp -f "$SRC"/boards/* "$BOARDS_DIR/" 2>/dev/null || true
-
-# Profiles also ship inside the package so auto-detect finds them with no
-# further configuration.
+# Board modules live in boards/ and are copied INTO the package, which is the
+# only place shipped profiles belong. They are deliberately NOT copied to
+# $BOARDS_DIR: the user directory is searched *first*, so a copy there would
+# permanently shadow the packaged one and a later upgrade could never correct a
+# bad profile. That directory is for boards the user adds themselves.
+#
+# Note the trailing '/.' - board modules are directories, so a plain
+# `cp -f boards/*` copies index.json and silently omits every board.
+say "Syncing board modules into the package"
 PKG_BOARDS="$SRC/plasmoid/$APPLET_ID/contents/boards"
 mkdir -p "$PKG_BOARDS"
-cp -f "$SRC"/boards/* "$PKG_BOARDS/" 2>/dev/null || true
+cp -a "$SRC/boards/." "$PKG_BOARDS/"
+
+say "Creating $BOARDS_DIR for your own board profiles"
+mkdir -p "$BOARDS_DIR"
 
 say "Installing notification definitions"
 install -Dm644 "$SRC/plasmoid/$APPLET_ID/contents/dimmmcemonitor.notifyrc" \
     "${XDG_DATA_HOME:-$HOME/.local/share}/knotifications6/dimmmcemonitor.notifyrc"
 
+INSTALLED="$(kpackagetool6 --type Plasma/Applet --list 2>/dev/null || true)"
+
+if grep -qx "$LEGACY_APPLET_ID" <<<"$INSTALLED"; then
+    say "Removing the old $LEGACY_APPLET_ID package"
+    kpackagetool6 --type Plasma/Applet --remove "$LEGACY_APPLET_ID" || \
+        warn "could not remove $LEGACY_APPLET_ID - remove it by hand if a duplicate entry appears in the tray"
+fi
+
 say "Installing the Plasma applet"
-if kpackagetool6 --type Plasma/Applet --list 2>/dev/null | grep -qx "$APPLET_ID"; then
+if grep -qx "$APPLET_ID" <<<"$INSTALLED"; then
     kpackagetool6 --type Plasma/Applet --upgrade "$SRC/plasmoid/$APPLET_ID"
 else
     kpackagetool6 --type Plasma/Applet --install "$SRC/plasmoid/$APPLET_ID"
