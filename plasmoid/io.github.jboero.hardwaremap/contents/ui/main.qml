@@ -168,7 +168,7 @@ PlasmoidItem {
              + "%1 and run ./install.sh", root.projectUrl)
 
     readonly property string projectUrl:
-        "https://github.com/jboero/plasmoid_hardware_map"
+        "https://github.com/jboero/plasmoid-hardware-map"
 
     function reload() {
         var path = cfgStr("statePath", "/run/dimm-mce/state.json")

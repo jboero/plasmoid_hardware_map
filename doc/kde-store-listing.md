@@ -8,7 +8,7 @@ Upload at <https://store.kde.org/> → *Add Product*.
 | Title | Board Health Monitor |
 | Version | 1.0.0 |
 | License | GPL-2.0-or-later |
-| Source / homepage | https://github.com/jboero/plasmoid_hardware_map |
+| Source / homepage | https://github.com/jboero/plasmoid-hardware-map |
 | File | `dist/plasmoid_hardware_map-1.0.0.plasmoid` |
 | Tags | plasma6, systemtray, hardware, monitor, smart, ecc, sensors, pcie, nvme |
 
@@ -32,7 +32,7 @@ Hardware health — ECC errors, SMART, temperatures, fans, PCIe and storage port
 **Requires a companion collector that the KDE Store cannot install.** The widget
 reads a snapshot written by a small root service; installing the widget alone
 will show you a message telling you exactly this. Get both from
-https://github.com/jboero/plasmoid_hardware_map and run `./install.sh`.
+https://github.com/jboero/plasmoid-hardware-map and run `./install.sh`.
 
 ---
 
@@ -86,7 +86,7 @@ machine whose chipset cannot detect memory errors at all reports its memory as
 
 ## Changelog field
 
-First release. Full notes: https://github.com/jboero/plasmoid_hardware_map/blob/main/CHANGELOG.md
+First release. Full notes: https://github.com/jboero/plasmoid-hardware-map/blob/main/CHANGELOG.md
 
 ---
 
