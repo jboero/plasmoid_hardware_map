@@ -882,9 +882,21 @@ def pcie_components(names, disks=None):
     if not os.path.isdir(slots_root):
         return out
 
+    # A PCIe port that declares Slot Implemented = 0 has no connector at all,
+    # but Linux still creates a /sys/bus/pci/slots entry for it, named with the
+    # all-ones value of the 13-bit Physical Slot Number field. Publishing that
+    # as "PCIe slot 8191" invents a connector nobody can go and point at, which
+    # is the one thing this display must never do. On the C610/X99 PCH it is the
+    # root port at 00:1c, which lspci shows as `Root Port (Slot-)` and whose
+    # sysfs bus speeds both read Unknown. No board has a slot 8191.
+    NO_PHYSICAL_SLOT = "8191"
+
     groups = defaultdict(list)
     for name in os.listdir(slots_root):
-        groups[name.split("-")[0]].append(name)
+        base = name.split("-")[0]
+        if base == NO_PHYSICAL_SLOT:
+            continue
+        groups[base].append(name)
 
     def sort_key(base):
         return (0, int(base)) if base.isdigit() else (1, base)

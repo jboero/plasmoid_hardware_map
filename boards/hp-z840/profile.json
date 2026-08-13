@@ -28,7 +28,9 @@
     "CPU fan placement follows the sensor name and is reliable. Which of the four memory fans serves which DIMM bank is ASSUMED in index order and is not verified.",
     "Chassis fans are not board components; they are drawn in the image margin on the correct side (rear = the I/O panel edge, at the left of this photo).",
     "Kernel ata5-8 (Intel controller 00:1f.2) are the sSATA side and include the DVD on ata6. They are intentionally NOT drawn: the two sSATA connectors could not be located in this photo, and drawing them on the SAS bank - as an earlier revision did - was simply wrong.",
-    "Storage connectors, right-to-left in all three blocks: 4 grey sSATA0-3 (PCI 00:11.4), 2 black SATA0-1 (PCI 00:1f.2), 8 cream SAS0-7 (LSI HBA). The silkscreen 's' prefix is ~1px wide in board.webp - verify at 16x zoom or against service-diagram callouts 14/15 before changing these names."
+    "Storage connectors, right-to-left in all three blocks: 4 grey sSATA0-3 (PCI 00:11.4), 2 black SATA0-1 (PCI 00:1f.2), 8 cream SAS0-7 (LSI HBA). The silkscreen 's' prefix is ~1px wide in board.webp - verify at 16x zoom or against service-diagram callouts 14/15 before changing these names.",
+    "SLOT4 and SLOT6 carry double-wide Quadro GV100 cards (owner-reported, and consistent with sysfs: the GPUs sit at 0000:84:00.0 and 0000:03:00.0, which are slots 4 and 6). A double-wide card occupies its neighbour's space, so SLOT5 reading 'empty' means blocked, not available.",
+    "SLOT7 is present on the board but the kernel creates no /sys/bus/pci/slots entry for it, so nothing is ever reported there. Its rectangle is kept deliberately: the widget draws a placed-but-unreported component hollow, which reads as 'not detected' rather than as healthy. Do not delete it to make the profile 'resolve cleanly'."
   ],
   "slots": {
     "dimm:s0_ha0_ch0_d0": {

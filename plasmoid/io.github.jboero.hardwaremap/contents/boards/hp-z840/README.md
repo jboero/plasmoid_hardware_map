@@ -24,6 +24,22 @@ background removed, 1358×1200. It is the active — and only — profile image.
   prints slot labels in the *gaps* between connectors, one serving the slot
   above and one below, so the nearest label to a connector is not reliably its
   own.
+- **Slot occupancy on the reference machine.** `SLOT4` and `SLOT6` hold
+  double-wide Quadro GV100 cards. This is owner-reported and agrees with sysfs:
+  the two GV100s are at `0000:84:00.0` and `0000:03:00.0`, which
+  `/sys/bus/pci/slots` names `4` and `6`.
+
+  Two consequences look like faults and are not:
+
+  | Slot | Widget shows | Why |
+  |---|---|---|
+  | `SLOT5` | empty | Physically blocked by the double-wide card in `SLOT4`. Enumerated, so genuinely reported as empty — but not available. |
+  | `SLOT7` | hollow, *not detected* | Present on the board, but the kernel creates no `/sys/bus/pci/slots` entry for it, so there is nothing to report. |
+
+  `SLOT7`'s rectangle is kept on purpose. A placed-but-unreported component is
+  drawn hollow, which reads as "not detected"; deleting the rectangle to make
+  the profile resolve cleanly would instead make a real slot silently vanish
+  from the board.
 - **All 14 storage connectors**, read off the silkscreen in `board.webp` at 8×
   zoom and cross-checked against HP's service diagram (callouts 13/14/15). Three
   blocks, every one numbered **right to left**:

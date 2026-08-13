@@ -133,7 +133,7 @@ python3 -c "import json;[print(f\"{c['kind']:6} {c['id']:28} {c['label']}\") \
 | `dimm` | `dimm:mc<n>_dimm<n>` | The driver exposed neither. Sysfs position only, and deliberately not dressed up as a channel/slot. `topology: "index"`. |
 | `dimm` | `dimm:dmi:<locator>` | **Only when EDAC reports nothing** — see *Machines without ECC*. Aliased as `dimm:<locator>`, so labelling a rectangle with the silkscreen name is enough. |
 | `cpu` | `cpu:<socket>` | Carries package temperature. |
-| `pcie` | `pcie:<slot>` | From `/sys/bus/pci/slots`. Base numbers usually match the silkscreen `SLOTn`; suffixed ones like `2-1` are downstream ports of a bridge **on** a card and are rarely worth placing. |
+| `pcie` | `pcie:<slot>` | From `/sys/bus/pci/slots`. Base numbers usually match the silkscreen `SLOTn`; suffixed ones like `2-1` are downstream ports of a bridge **on** a card and are rarely worth placing. Slot `8191` is **dropped**: it is the all-ones value of the 13-bit Physical Slot Number field, which firmware uses for a port that implements no slot at all, so publishing it would invent a connector nobody can point at. |
 | `sata` | `sata:ata<n>` | Kernel ata port numbering **need not follow the silkscreen**. Verify before trusting. |
 | `net` | `net:<ifname>` | Only physical interfaces; bridges/veths are filtered out. |
 | `fan` | `fan:<chip>:<n>` | |
@@ -156,6 +156,13 @@ needs remapping after a reboot.
 **You do not have to place everything.** Anything without a rectangle still
 appears in the list view. Place what you would physically go and touch: memory
 slots, expansion slots, ports, sockets.
+
+**The converse is also fine: place a connector the machine never reports.** A
+rectangle whose id resolves to no component is drawn *hollow*, which reads as
+"not detected" and never as healthy. That is the correct rendering for a slot
+that physically exists while firmware describes no port for it — the HP Z840's
+`SLOT7` is one. Do not delete such a rectangle to make a profile "resolve
+cleanly"; that hides a real connector instead of reporting it as unknown.
 
 ---
 
