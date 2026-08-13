@@ -4,6 +4,8 @@ A Plasma 6 system-tray widget that shows the health of your machine's hardware
 **on a picture of your actual motherboard** — ECC errors per DIMM, PCIe link
 widths per slot, drive SMART status per connector, fan speeds, and temperatures.
 
+[demo.webm](https://github.com/user-attachments/assets/d7962a9b-d25a-4501-97a4-d1c4146d0144)
+
 It sits quietly in the tray and only asks for attention when something changes.
 
 ![Board view](doc/board-view.png)
