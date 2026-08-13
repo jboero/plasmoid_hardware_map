@@ -121,7 +121,20 @@ rm -f "$OUT"
 ( cd "$PKG" && zip -qr "$OUT" . -x '*~' '*.bak' '.*' )
 
 echo "==> Built $OUT"
-unzip -l "$OUT" | tail -3
+
+# Capture the listing rather than piping it. Under `set -o pipefail`, a
+# `unzip -l ... | grep -q ...` fails intermittently: grep exits at the first
+# match, unzip takes SIGPIPE, and the pipeline reports 141 even though the
+# match succeeded. That turned a passing build into a random "MISSING".
+LISTING="$(unzip -Z1 "$OUT")"
+
+echo "  $(wc -l <<<"$LISTING") entries, $(du -h "$OUT" | cut -f1)"
 echo
 echo "Sanity check - metadata.json must be at the archive root:"
-unzip -l "$OUT" | grep -q ' metadata.json$' && echo "  OK" || { echo "  MISSING"; exit 1; }
+# -x anchors the whole line, so contents/metadata.json would not satisfy this.
+if grep -qx 'metadata.json' <<<"$LISTING"; then
+    echo "  OK"
+else
+    echo "  MISSING - Plasma will not recognise this as a package"
+    exit 1
+fi
